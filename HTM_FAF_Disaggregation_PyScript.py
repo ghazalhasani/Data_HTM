@@ -3,7 +3,7 @@
 
 # Author: Maddie Hasani, Fehr & Peers <br/>
 # Reviewer: Fatemeh Ranaiefar, Fehr & Peers<br/>
-# Last update: 11/17/2023
+# Last update: 11/20/2023
 
 ## REQUIRED LIBRARIES
 
@@ -87,7 +87,7 @@ def load_and_preprocess_data(path):
 # =======================================================================================================================================
 
 # Function 2
-def clean_faf(df, faz_gateway, faz_county, external, othermode_truck, commodity_group):
+def clean_faf(df, faz_gateway, faz_county, sd_flows, othermode_truck, commodity_group):
     """
     Process a DataFrame containing transportation data.
 
@@ -95,7 +95,7 @@ def clean_faf(df, faz_gateway, faz_county, external, othermode_truck, commodity_
     - df (DataFrame): The input DataFrame containing transportation data.
     - faz_gateway (DataFrame): DataFrame containing FAZ and Gateways/Airports/Ports TAZ.
     - faz_county (DataFrame): DataFrame containing FAZ and County information.
-    - external (DataFrame): DataFrame containing Origin and Destination pair that will generate truck trips to/from SANDAG or Pass through SANDAG region.
+    - sd_flows (DataFrame): DataFrame containing Origin and Destination pair that will generate truck trips to/from SANDAG or Pass through SANDAG region.
     - othermode_truck (DataFrame): DataFrame with mode information and percentages.
     - commodity_group (DataFrame): DataFrame mapping commodities to CG values.
 
@@ -112,7 +112,7 @@ def clean_faf(df, faz_gateway, faz_county, external, othermode_truck, commodity_
     6. Adds columns identifying if OD pairs have at least one end within Orange County or Mexico.
     The processed DataFrame is returned.
     """
-    external = df_dict[external]
+    sd_flows = df_dict[sd_flows]
     faz_gateway = df_dict[faz_gateway]
     faz_county = df_dict[faz_county]
     othermode_truck = df_dict[othermode_truck]
@@ -128,7 +128,7 @@ def clean_faf(df, faz_gateway, faz_county, external, othermode_truck, commodity_
     df.loc[df['dms_orig'].isin(faz_sandag), 'code_orig'] = 8
     df.loc[df['dms_dest'].isin(faz_sandag), 'code_dest'] = 8
     # merge the distribution of truck trips between each OD pair
-    df = df.merge(external[['OriginCode', 'DestinationCode', 'Dist']], how='left', left_on=['code_orig', 'code_dest'], right_on=['OriginCode', 'DestinationCode']).drop(['OriginCode', 'DestinationCode'], axis=1)
+    df = df.merge(sd_flows[['OriginCode', 'DestinationCode', 'Dist']], how='left', left_on=['code_orig', 'code_dest'], right_on=['OriginCode', 'DestinationCode']).drop(['OriginCode', 'DestinationCode'], axis=1)
     # calculate how much of each OD pairs will travel through SANDAG - multiply by the ton
     df['distons_2017'] = df['distons_2017'] * df['Dist']
     # remove all OD pairs that do not have any tons traveled through or within SANDAG
@@ -427,7 +427,7 @@ for chunk_num in range(num_chunks):
     df_chunk = df[start_idx:end_idx]
 
     # Step 3: Clean FAF data
-    df_chunk = clean_faf(df_chunk, 'faz_gateway', 'faz_county', 'external', 'othermode_truck', 'commodity_group')
+    df_chunk = clean_faf(df_chunk, 'faz_gateway', 'faz_county', 'sd_flows', 'othermode_truck', 'commodity_group')
 
     # Step 4: FAF disaggregation to TAZ
     df_chunk = faf_disaggregate_to_taz(df_chunk, 'faz_gateway', 'cg_emp_a', 'cg_emp_p', 'faz_county', taz, 'annual_factor')
